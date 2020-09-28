@@ -12,20 +12,20 @@ namespace Microsoft.ReverseProxy.Service.Routing
     /// </summary>
     internal class HeaderMetadata : IHeaderMetadata
     {
-        public HeaderMetadata(string headerName, IReadOnlyList<string> headerValues, HeaderMatchMode mode, bool caseSensitive)
+        public HeaderMetadata(string name, IReadOnlyList<string> values, HeaderMatchMode mode, bool caseSensitive)
         {
-            if (string.IsNullOrEmpty(headerName))
+            if (string.IsNullOrEmpty(name))
             {
-                throw new ArgumentException("A header name is required.", nameof(headerName));
+                throw new ArgumentException("A header name is required.", nameof(name));
             }
             if (mode != HeaderMatchMode.Exists
-                && (headerValues == null || headerValues.Count == 0))
+                && (values == null || values.Count == 0))
             {
-                throw new ArgumentException("Header values must have at least one value.", nameof(headerValues));
+                throw new ArgumentException("Header values must have at least one value.", nameof(values));
             }
 
-            HeaderName = headerName;
-            HeaderValues = headerValues;
+            Name = name;
+            Values = values;
             Mode = mode;
             CaseSensitive = caseSensitive;
         }
@@ -33,13 +33,13 @@ namespace Microsoft.ReverseProxy.Service.Routing
         /// <summary>
         /// Name of the header to look for.
         /// </summary>
-        public string HeaderName { get; }
+        public string Name { get; }
 
         /// <summary>
         /// Returns a read-only collection of acceptable header values used during routing.
         /// An empty collection means any header value will be accepted, as long as the header is present.
         /// </summary>
-        public IReadOnlyList<string> HeaderValues { get; }
+        public IReadOnlyList<string> Values { get; }
 
         /// <summary>
         /// Specifies how header values should be compared (e.g. exact matches Vs. by prefix).

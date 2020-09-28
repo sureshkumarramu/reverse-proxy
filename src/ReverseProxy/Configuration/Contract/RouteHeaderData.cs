@@ -1,41 +1,37 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System;
 using System.Collections.Generic;
 using Microsoft.ReverseProxy.Abstractions;
 
-namespace Microsoft.ReverseProxy.Service.Routing
+namespace Microsoft.ReverseProxy.Configuration.Contract
 {
     /// <summary>
-    /// Represents request header metadata used during routing.
+    /// Describes the matching criteria for a route.
     /// </summary>
-    internal interface IHeaderMetadata
+    public class RouteHeaderData
     {
         /// <summary>
         /// Name of the header to look for.
         /// </summary>
-        string Name { get; }
+        public string Name { get; set; }
 
         /// <summary>
-        /// Returns a read-only collection of acceptable header values used during routing.
+        /// The header value to match during routing. Use <see cref="Values"/> for multiple values.
+        /// </summary>
+        public string Value { get; set; }
+
+        /// <summary>
+        /// A collection of acceptable header values used during routing.
         /// The list must not be empty.
         /// </summary>
-        IReadOnlyList<string> Values { get; }
+        public IReadOnlyList<string> Values { get; set; }
 
         /// <summary>
         /// Specifies how header values should be compared (e.g. exact matches Vs. by prefix).
         /// Defaults to <see cref="HeaderMatchMode.ExactHeader"/>.
         /// </summary>
-        HeaderMatchMode Mode { get; }
-
-        // Not implemented:
-        // A request header may have multiple values, either as multiple headers,
-        // a comma separated header, or some combination of the two.
-        // Also don't forget cookies that are semi-colon separated.
-        // The current implementation doesn't attempt to match individual header values,
-        // it only supports matching a single full header.
-        // bool AllowMultiValueHeaders { get; }
+        public HeaderMatchMode Mode { get; set; }
 
         /// <summary>
         /// Specifies whether header value comparisons should ignore case.
@@ -43,6 +39,6 @@ namespace Microsoft.ReverseProxy.Service.Routing
         /// When <c>false</c>, <see cref="StringComparison.OrdinalIgnoreCase" /> is used.
         /// Defaults to <c>false</c>.
         /// </summary>
-        bool CaseSensitive { get; }
+        public bool CaseSensitive { get; set; }
     }
 }

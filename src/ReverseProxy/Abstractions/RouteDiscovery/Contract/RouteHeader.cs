@@ -17,13 +17,13 @@ namespace Microsoft.ReverseProxy.Abstractions
         /// <summary>
         /// Name of the header to look for.
         /// </summary>
-        public string HeaderName { get; set; }
+        public string Name { get; set; }
 
         /// <summary>
         /// A collection of acceptable header values used during routing.
         /// The list must not be empty.
         /// </summary>
-        public IReadOnlyList<string> HeaderValues { get; set; }
+        public IReadOnlyList<string> Values { get; set; }
 
         /// <summary>
         /// Specifies how header values should be compared (e.g. exact matches Vs. by prefix).
@@ -43,8 +43,8 @@ namespace Microsoft.ReverseProxy.Abstractions
         {
             return new RouteHeader()
             {
-                HeaderName = HeaderName,
-                HeaderValues = HeaderValues?.ToArray(),
+                Name = Name,
+                Values = Values?.ToArray(),
                 Mode = Mode,
                 CaseSensitive = CaseSensitive,
             };
@@ -62,12 +62,12 @@ namespace Microsoft.ReverseProxy.Abstractions
                 return false;
             }
 
-            return string.Equals(header1.HeaderName, header1.HeaderName, StringComparison.OrdinalIgnoreCase)
+            return string.Equals(header1.Name, header1.Name, StringComparison.OrdinalIgnoreCase)
                 && header1.Mode == header2.Mode
                 && header1.CaseSensitive == header2.CaseSensitive
                 && header1.CaseSensitive
-                    ? CaseSensitiveEqualHelper.Equals(header1.HeaderValues, header2.HeaderValues)
-                    : CaseInsensitiveEqualHelper.Equals(header1.HeaderValues, header2.HeaderValues);
+                    ? CaseSensitiveEqualHelper.Equals(header1.Values, header2.Values)
+                    : CaseInsensitiveEqualHelper.Equals(header1.Values, header2.Values);
         }
     }
 }

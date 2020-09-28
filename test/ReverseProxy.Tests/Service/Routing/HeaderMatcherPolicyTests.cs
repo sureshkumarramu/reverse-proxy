@@ -291,8 +291,8 @@ namespace Microsoft.ReverseProxy.Service.Routing
         {
             var builder = new RouteEndpointBuilder(_ => Task.CompletedTask, RoutePatternFactory.Parse("/"), 0);
             var metadata = new Mock<IHeaderMetadata>();
-            metadata.SetupGet(m => m.HeaderName).Returns(headerName);
-            metadata.SetupGet(m => m.HeaderValues).Returns(headerValues);
+            metadata.SetupGet(m => m.Name).Returns(headerName);
+            metadata.SetupGet(m => m.Values).Returns(headerValues);
             metadata.SetupGet(m => m.Mode).Returns(headerValueMatchMode);
             metadata.SetupGet(m => m.CaseSensitive).Returns(caseSensitive);
 

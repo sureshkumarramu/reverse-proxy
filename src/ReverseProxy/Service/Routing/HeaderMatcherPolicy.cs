@@ -54,22 +54,22 @@ namespace Microsoft.ReverseProxy.Service.Routing
                 for (var m = 0; m < metadataList.Count; m++)
                 {
                     var metadata = metadataList[m];
-                    var metadataHeaderName = metadata.HeaderName;
-                    var metadataHeaderValues = metadata.HeaderValues;
+                    var expectedHeaderName = metadata.Name;
+                    var expectedHeaderValues = metadata.Values;
 
                     // Also checked in the HeaderMetadata constructor.
-                    if (string.IsNullOrEmpty(metadataHeaderName))
+                    if (string.IsNullOrEmpty(expectedHeaderName))
                     {
                         throw new InvalidOperationException("A header name must be specified.");
                     }
                     if (metadata.Mode != HeaderMatchMode.Exists
-                        && (metadataHeaderValues == null || metadataHeaderValues.Count == 0))
+                        && (expectedHeaderValues == null || expectedHeaderValues.Count == 0))
                     {
-                        throw new InvalidOperationException("IHeaderMetadata.HeaderValues must have at least one value.");
+                        throw new InvalidOperationException("IHeaderMetadata.Values must have at least one value.");
                     }
 
                     var matched = false;
-                    if (httpContext.Request.Headers.TryGetValue(metadataHeaderName, out var requestHeaderValues))
+                    if (httpContext.Request.Headers.TryGetValue(expectedHeaderName, out var requestHeaderValues))
                     {
                         if (StringValues.IsNullOrEmpty(requestHeaderValues))
                         {
@@ -85,9 +85,9 @@ namespace Microsoft.ReverseProxy.Service.Routing
                         else if (requestHeaderValues.Count == 1)
                         {
                             var requestHeaderValue = requestHeaderValues.ToString();
-                            for (var j = 0; j < metadataHeaderValues.Count; j++)
+                            for (var j = 0; j < expectedHeaderValues.Count; j++)
                             {
-                                if (MatchHeader(metadata.Mode, requestHeaderValue, metadataHeaderValues[j], metadata.CaseSensitive))
+                                if (MatchHeader(metadata.Mode, requestHeaderValue, expectedHeaderValues[j], metadata.CaseSensitive))
                                 {
                                     matched = true;
                                     break;
@@ -133,8 +133,8 @@ namespace Microsoft.ReverseProxy.Service.Routing
         {
             protected override int CompareMetadata(IHeaderMetadata x, IHeaderMetadata y)
             {
-                var xPresent = !string.IsNullOrEmpty(x?.HeaderName);
-                var yPresent = !string.IsNullOrEmpty(y?.HeaderName);
+                var xPresent = !string.IsNullOrEmpty(x?.Name);
+                var yPresent = !string.IsNullOrEmpty(y?.Name);
 
                 // 1. First, sort by presence of metadata
                 if (!xPresent && yPresent)
@@ -154,8 +154,8 @@ namespace Microsoft.ReverseProxy.Service.Routing
                 }
 
                 // 2. Then, by whether we seek specific header values or just header presence
-                var xCount = x.HeaderValues?.Count ?? 0;
-                var yCount = y.HeaderValues?.Count ?? 0;
+                var xCount = x.Values?.Count ?? 0;
+                var yCount = y.Values?.Count ?? 0;
 
                 if (xCount == 0 && yCount > 0)
                 {

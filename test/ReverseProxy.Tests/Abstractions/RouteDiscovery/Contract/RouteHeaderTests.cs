@@ -19,8 +19,8 @@ namespace Microsoft.ReverseProxy.Abstractions.Tests
         {
             var sut = new RouteHeader
             {
-                HeaderName = "header1",
-                HeaderValues = new[] { "value1", "value2" },
+                Name = "header1",
+                Values = new[] { "value1", "value2" },
                 Mode = HeaderMatchMode.HeaderPrefix,
                 CaseSensitive = true,
             };
@@ -28,9 +28,9 @@ namespace Microsoft.ReverseProxy.Abstractions.Tests
             var clone = sut.DeepClone();
 
             Assert.NotSame(sut, clone);
-            Assert.Equal(sut.HeaderName, clone.HeaderName);
-            Assert.NotSame(sut.HeaderValues, clone.HeaderValues);
-            Assert.Equal(sut.HeaderValues, clone.HeaderValues);
+            Assert.Equal(sut.Name, clone.Name);
+            Assert.NotSame(sut.Values, clone.Values);
+            Assert.Equal(sut.Values, clone.Values);
             Assert.Equal(sut.Mode, clone.Mode);
             Assert.Equal(sut.CaseSensitive, clone.CaseSensitive);
 
@@ -44,8 +44,8 @@ namespace Microsoft.ReverseProxy.Abstractions.Tests
             var clone = sut.DeepClone();
 
             Assert.NotSame(sut, clone);
-            Assert.Null(clone.HeaderName);
-            Assert.Null(clone.HeaderValues);
+            Assert.Null(clone.Name);
+            Assert.Null(clone.Values);
             Assert.Equal(HeaderMatchMode.ExactHeader, clone.Mode);
             Assert.False(clone.CaseSensitive);
 
