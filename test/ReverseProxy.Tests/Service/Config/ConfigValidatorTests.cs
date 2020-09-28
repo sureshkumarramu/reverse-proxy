@@ -215,6 +215,121 @@ namespace Microsoft.ReverseProxy.Service.Tests
             Assert.Contains(result, err => err.Message.StartsWith("Duplicate HTTP method"));
         }
 
+        [Fact]
+        public async Task Accepts_RouteHeader()
+        {
+            var route = new ProxyRoute
+            {
+                RouteId = "route1",
+                Match =
+                {
+                    Path = "/",
+                    Headers = new[]
+                    {
+                        new RouteHeader()
+                        {
+                            Name = "header1",
+                            Values = new[] { "value1" },
+                        }
+                    },
+                },
+                ClusterId = "cluster1",
+            };
+
+            var services = CreateServices();
+            var validator = services.GetRequiredService<IConfigValidator>();
+
+            var result = await validator.ValidateRouteAsync(route);
+
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public async Task Accepts_RouteHeader_ExistsWithNoValue()
+        {
+            var route = new ProxyRoute
+            {
+                RouteId = "route1",
+                Match =
+                {
+                    Path = "/",
+                    Headers = new[]
+                    {
+                        new RouteHeader()
+                        {
+                            Name = "header1",
+                            Mode = HeaderMatchMode.Exists
+                        }
+                    },
+                },
+                ClusterId = "cluster1",
+            };
+
+            var services = CreateServices();
+            var validator = services.GetRequiredService<IConfigValidator>();
+
+            var result = await validator.ValidateRouteAsync(route);
+
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public async Task Rejects_NullRouteHeader()
+        {
+            var route = new ProxyRoute
+            {
+                RouteId = "route1",
+                Match =
+                {
+                    Path = "/",
+                    Headers = new RouteHeader[] { null },
+                },
+                ClusterId = "cluster1",
+            };
+
+            var services = CreateServices();
+            var validator = services.GetRequiredService<IConfigValidator>();
+
+            var result = await validator.ValidateRouteAsync(route);
+
+            var ex = Assert.Single(result);
+            Assert.Contains("A null route header has been set for route", ex.Message);
+        }
+
+        [Theory]
+        [InlineData("", "v1", "A null or empty route header name has been set for route")]
+        [InlineData("h1", null, "No header values were set on route header")]
+        public async Task Rejects_InvalidRouteHeader(string name, string value, string error)
+        {
+            var routeHeader = new RouteHeader()
+            {
+                Name = name,
+            };
+            if (value != null)
+            {
+                routeHeader.Values = new[] { value };
+            }
+
+            var route = new ProxyRoute
+            {
+                RouteId = "route1",
+                Match =
+                {
+                    Path = "/",
+                    Headers = new[] { routeHeader },
+                },
+                ClusterId = "cluster1",
+            };
+
+            var services = CreateServices();
+            var validator = services.GetRequiredService<IConfigValidator>();
+
+            var result = await validator.ValidateRouteAsync(route);
+
+            var ex = Assert.Single(result);
+            Assert.Contains(error, ex.Message);
+        }
+
         [Theory]
         [InlineData(null)]
         [InlineData("")]
