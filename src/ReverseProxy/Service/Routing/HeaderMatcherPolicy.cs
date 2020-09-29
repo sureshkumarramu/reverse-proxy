@@ -129,51 +129,77 @@ namespace Microsoft.ReverseProxy.Service.Routing
             });
         }
 
-        private class HeaderMetadataEndpointComparer : EndpointMetadataComparer<IHeaderMetadata>
+        private class HeaderMetadataEndpointComparer : IComparer<Endpoint>
         {
-            protected override int CompareMetadata(IHeaderMetadata x, IHeaderMetadata y)
+            public int Compare(Endpoint x, Endpoint y)
             {
-                var xPresent = !string.IsNullOrEmpty(x?.Name);
-                var yPresent = !string.IsNullOrEmpty(y?.Name);
+                _ = x ?? throw new ArgumentNullException(nameof(x));
+                _ = y ?? throw new ArgumentNullException(nameof(y));
 
-                // 1. First, sort by presence of metadata
-                if (!xPresent && yPresent)
+                // First check, do they both have at least one?
+                var xmeta = x.Metadata.GetMetadata<IHeaderMetadata>();
+                var ymeta = y.Metadata.GetMetadata<IHeaderMetadata>();
+
+                if (xmeta == null && ymeta == null)
                 {
-                    // y is more specific
-                    return 1;
-                }
-                else if (xPresent && !yPresent)
-                {
-                    // x is more specific
-                    return -1;
-                }
-                else if (!xPresent && !yPresent)
-                {
-                    // None of the policies have any effect, so they have same specificity.
                     return 0;
                 }
-
-                // 2. Then, by whether we seek specific header values or just header presence
-                var xCount = x.Values?.Count ?? 0;
-                var yCount = y.Values?.Count ?? 0;
-
-                if (xCount == 0 && yCount > 0)
+                if (xmeta == null)
                 {
-                    // y is more specific, as *only it* looks for specific header values
-                    return 1;
+                    return 1; // y is more specific
                 }
-                else if (xCount > 0 && yCount == 0)
+                if (ymeta == null)
                 {
-                    // x is more specific, as *only it* looks for specific header values
-                    return -1;
+                    return -1; // x is more specific
                 }
-                else if (xCount == 0 && yCount == 0)
+
+                // They both have at least one, but do either of them have more than one?
+                var xmetas = x.Metadata.GetOrderedMetadata<IHeaderMetadata>();
+                var ymetas = y.Metadata.GetOrderedMetadata<IHeaderMetadata>();
+
+                if (xmetas.Count == 1 && ymetas.Count == 1)
                 {
-                    // Same specificity, they both only check eader presence
+                    return CompareMetadata(xmeta, ymeta);
+                }
+                if (xmetas.Count < ymetas.Count)
+                {
+                    return 1; // y is more specific, it's checking more headers
+                }
+                if (xmetas.Count > ymetas.Count)
+                {
+                    return -1; // x is more specific, it's checking more headers
+                }
+
+                // Each endpoint is searching for the same number of headers, and it's more than one.
+                // Is there a good way to rationalize which one is more specific?
+                return 0;
+            }
+
+            private static int CompareMetadata(IHeaderMetadata x, IHeaderMetadata y)
+            {
+                // The caller confirmed both are present.
+
+                // 1. By whether we seek specific header values or just header presence
+                var xExists = x.Mode == HeaderMatchMode.Exists;
+                var yExists = y.Mode == HeaderMatchMode.Exists;
+
+                if (xExists && yExists)
+                {
+                    // Same specificity, they both only check header presence
                     return 0;
                 }
+                if (xExists)
+                {
+                    // y is more specific, x only looks for header presence
+                    return 1;
+                }
+                if (yExists)
+                {
+                    // x is more specific, y only looks for header presence
+                    return -1;
+                }
 
-                // 3. Then, by value match mode (Exact Vs. Prefix)
+                // 2. Then, by value match mode (Exact Vs. Prefix)
                 if (x.Mode != HeaderMatchMode.ExactHeader && y.Mode == HeaderMatchMode.ExactHeader)
                 {
                     // y is more specific, as *only it* does exact match
@@ -185,7 +211,7 @@ namespace Microsoft.ReverseProxy.Service.Routing
                     return -1;
                 }
 
-                // 4. Then, by case sensitivity
+                // 3. Then, by case sensitivity
                 if (x.CaseSensitive && !y.CaseSensitive)
                 {
                     // x is more specific, as *only it* is case sensitive

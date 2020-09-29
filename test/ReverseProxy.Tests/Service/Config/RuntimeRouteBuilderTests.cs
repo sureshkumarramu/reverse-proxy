@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
@@ -11,6 +12,7 @@ using Microsoft.ReverseProxy.Abstractions;
 using Microsoft.ReverseProxy.RuntimeModel;
 using Microsoft.ReverseProxy.Service.Config;
 using Microsoft.ReverseProxy.Service.Management;
+using Microsoft.ReverseProxy.Service.Routing;
 using Microsoft.ReverseProxy.Utilities;
 using Xunit;
 
@@ -236,6 +238,109 @@ namespace Microsoft.ReverseProxy.Service.Tests
             Action action = () => builder.Build(route, cluster, routeInfo);
 
             Assert.Throws<AspNetCore.Routing.Patterns.RoutePatternException>(action);
+        }
+
+        [Fact]
+        public void BuildEndpoints_Header_Works()
+        {
+            var services = CreateServices();
+            var builder = services.GetRequiredService<IRuntimeRouteBuilder>();
+            builder.SetProxyPipeline(context => Task.CompletedTask);
+
+            var route = new ProxyRoute
+            {
+                RouteId = "route1",
+                Match =
+                {
+                    Path = "/",
+                    Headers = new[]
+                    {
+                        new RouteHeader()
+                        {
+                            Name = "header1",
+                            Values = new[] { "value1" },
+                            Mode = HeaderMatchMode.HeaderPrefix,
+                            CaseSensitive = true,
+                        }
+                    }
+                },
+            };
+            var cluster = new ClusterInfo("cluster1", new DestinationManager());
+            var routeInfo = new RouteInfo("route1");
+
+            var config = builder.Build(route, cluster, routeInfo);
+
+            Assert.Same(cluster, config.Cluster);
+            Assert.Single(config.Endpoints);
+            var routeEndpoint = config.Endpoints[0] as AspNetCore.Routing.RouteEndpoint;
+            Assert.Equal("route1", routeEndpoint.DisplayName);
+            var headerMetadata = routeEndpoint.Metadata.GetMetadata<IHeaderMetadata>();
+            Assert.NotNull(headerMetadata);
+            Assert.Equal("header1", headerMetadata.Name);
+            Assert.Equal(new[] { "value1" }, headerMetadata.Values);
+            Assert.Equal(HeaderMatchMode.HeaderPrefix, headerMetadata.Mode);
+            Assert.True(headerMetadata.CaseSensitive);
+
+            Assert.False(config.HasConfigChanged(route, cluster));
+        }
+
+        [Fact]
+        public void BuildEndpoints_Headers_Works()
+        {
+            var services = CreateServices();
+            var builder = services.GetRequiredService<IRuntimeRouteBuilder>();
+            builder.SetProxyPipeline(context => Task.CompletedTask);
+
+            var route = new ProxyRoute
+            {
+                RouteId = "route1",
+                Match =
+                {
+                    Path = "/",
+                    Headers = new[]
+                    {
+                        new RouteHeader()
+                        {
+                            Name = "header1",
+                            Values = new[] { "value1" },
+                            Mode = HeaderMatchMode.HeaderPrefix,
+                            CaseSensitive = true,
+                        },
+                        new RouteHeader()
+                        {
+                            Name = "header2",
+                            Mode = HeaderMatchMode.Exists,
+                        }
+                    }
+                },
+            };
+            var cluster = new ClusterInfo("cluster1", new DestinationManager());
+            var routeInfo = new RouteInfo("route1");
+
+            var config = builder.Build(route, cluster, routeInfo);
+
+            Assert.Same(cluster, config.Cluster);
+            Assert.Single(config.Endpoints);
+            var routeEndpoint = config.Endpoints[0] as AspNetCore.Routing.RouteEndpoint;
+            Assert.Equal("route1", routeEndpoint.DisplayName);
+            var allHeaderMetadata = routeEndpoint.Metadata.GetOrderedMetadata<IHeaderMetadata>();
+            Assert.Equal(2, allHeaderMetadata.Count);
+
+            var firstMetadata = allHeaderMetadata.First();
+            Assert.NotNull(firstMetadata);
+            Assert.Equal("header1", firstMetadata.Name);
+            Assert.Equal(new[] { "value1" }, firstMetadata.Values);
+            Assert.Equal(HeaderMatchMode.HeaderPrefix, firstMetadata.Mode);
+            Assert.True(firstMetadata.CaseSensitive);
+
+            var secondMetadata = allHeaderMetadata.Skip(1).Single();
+            Assert.NotNull(secondMetadata);
+            Assert.Equal("header2", secondMetadata.Name);
+            Assert.Null(secondMetadata.Values);
+            Assert.Equal(HeaderMatchMode.Exists, secondMetadata.Mode);
+            Assert.False(secondMetadata.CaseSensitive);
+
+            Assert.False(config.HasConfigChanged(route, cluster));
         }
 
         [Fact]

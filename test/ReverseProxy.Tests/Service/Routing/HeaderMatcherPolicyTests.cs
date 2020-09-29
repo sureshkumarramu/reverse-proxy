@@ -1,13 +1,15 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Routing.Matching;
 using Microsoft.AspNetCore.Routing.Patterns;
 using Microsoft.ReverseProxy.Abstractions;
-using Moq;
 using Xunit;
 
 namespace Microsoft.ReverseProxy.Service.Routing
@@ -17,33 +19,75 @@ namespace Microsoft.ReverseProxy.Service.Routing
         [Fact]
         public void Comparer_SortOrder()
         {
-            // Arrange
             var endpoints = new[]
             {
-                (0, Endpoint("header", new[] { "abc" }, HeaderMatchMode.ExactHeader, caseSensitive: true)),
+                (0, CreateEndpoint("header", new[] { "abc" }, HeaderMatchMode.ExactHeader, caseSensitive: true)),
 
-                (1, Endpoint("header", new[] { "abc" }, HeaderMatchMode.ExactHeader)),
-                (1, Endpoint("header", new[] { "abc", "def" }, HeaderMatchMode.ExactHeader)),
-                (1, Endpoint("header2", new[] { "abc", "def" }, HeaderMatchMode.ExactHeader)),
+                (1, CreateEndpoint("header", new[] { "abc" }, HeaderMatchMode.ExactHeader)),
+                (1, CreateEndpoint("header", new[] { "abc", "def" }, HeaderMatchMode.ExactHeader)),
+                (1, CreateEndpoint("header2", new[] { "abc", "def" }, HeaderMatchMode.ExactHeader)),
 
-                (2, Endpoint("header", new[] { "abc" }, HeaderMatchMode.HeaderPrefix, caseSensitive: true)),
+                (2, CreateEndpoint("header", new[] { "abc" }, HeaderMatchMode.HeaderPrefix, caseSensitive: true)),
 
-                (3, Endpoint("header", new[] { "abc" }, HeaderMatchMode.HeaderPrefix)),
-                (3, Endpoint("header", new[] { "abc", "def" }, HeaderMatchMode.HeaderPrefix)),
-                (3, Endpoint("header2", new[] { "abc", "def" }, HeaderMatchMode.HeaderPrefix)),
+                (3, CreateEndpoint("header", new[] { "abc" }, HeaderMatchMode.HeaderPrefix)),
+                (3, CreateEndpoint("header", new[] { "abc", "def" }, HeaderMatchMode.HeaderPrefix)),
+                (3, CreateEndpoint("header2", new[] { "abc", "def" }, HeaderMatchMode.HeaderPrefix)),
 
-                (9, Endpoint("header", new string[0], HeaderMatchMode.ExactHeader, caseSensitive: true)),
-                (9, Endpoint("header", new string[0], HeaderMatchMode.ExactHeader)),
-                (9, Endpoint("header", new string[0], HeaderMatchMode.HeaderPrefix, caseSensitive: true)),
-                (9, Endpoint("header", new string[0], HeaderMatchMode.HeaderPrefix)),
-                (9, Endpoint("header", new string[0])),
-
-                (10, Endpoint(string.Empty, null)),
-                (10, Endpoint(null, null)),
+                (4, CreateEndpoint("header", new string[0], HeaderMatchMode.Exists, caseSensitive: true)),
+                (4, CreateEndpoint("header", new string[0], HeaderMatchMode.Exists)),
+                (4, CreateEndpoint("header", new string[0], HeaderMatchMode.Exists, caseSensitive: true)),
+                (4, CreateEndpoint("header", new string[0], HeaderMatchMode.Exists)),
             };
             var sut = new HeaderMatcherPolicy();
 
-            // Act
+            for (var i = 0; i < endpoints.Length; i++)
+            {
+                for (var j = 0; j < endpoints.Length; j++)
+                {
+                    var a = endpoints[i];
+                    var b = endpoints[j];
+
+                    var actual = sut.Comparer.Compare(a.Item2, b.Item2);
+                    var expected =
+                        a.Item1 < b.Item1 ? -1 :
+                        a.Item1 > b.Item1 ? 1 : 0;
+                    if (actual != expected)
+                    {
+                        Assert.True(false, $"Error comparing [{i}] to [{j}], expected {expected}, found {actual}.");
+                    }
+                }
+            }
+        }
+
+        [Fact]
+        public void Comparer_MultipleHeaders_SortOrder()
+        {
+            var endpoints = new[]
+            {
+                (3, CreateEndpoint(Array.Empty<HeaderMetadata>())),
+
+                (2, CreateEndpoint("header", new[] { "abc" })),
+
+                (1, CreateEndpoint(new[]
+                {
+                    new HeaderMetadata("header", new[] { "abc" }, HeaderMatchMode.HeaderPrefix, caseSensitive: true),
+                    new HeaderMetadata("header", new[] { "abc" }, HeaderMatchMode.ExactHeader, caseSensitive: true)
+                })),
+                (1, CreateEndpoint(new[]
+                {
+                    new HeaderMetadata("header", new string[0], HeaderMatchMode.Exists, caseSensitive: true),
+                    new HeaderMetadata("header", new[] { "abc" }, HeaderMatchMode.ExactHeader, caseSensitive: true)
+                })),
+
+                (0, CreateEndpoint(new[]
+                {
+                    new HeaderMetadata("header", new string[0], HeaderMatchMode.Exists, caseSensitive: true),
+                    new HeaderMetadata("header", new[] { "abc" }, HeaderMatchMode.HeaderPrefix, caseSensitive: true),
+                    new HeaderMetadata("header", new[] { "abc" }, HeaderMatchMode.ExactHeader, caseSensitive: true)
+                }))
+            };
+            var sut = new HeaderMatcherPolicy();
+
             for (var i = 0; i < endpoints.Length; i++)
             {
                 for (var j = 0; j < endpoints.Length; j++)
@@ -66,22 +110,23 @@ namespace Microsoft.ReverseProxy.Service.Routing
         [Fact]
         public void AppliesToEndpoints_AppliesScenarios()
         {
-            // Arrange
             var scenarios = new[]
             {
-                Endpoint("org-id", new string[0]),
-                Endpoint("org-id", new[] { "abc" }),
-                Endpoint("org-id", new[] { "abc", "def" }),
-                Endpoint(null, null, isDynamic: true),
-                Endpoint(string.Empty, null, isDynamic: true),
-                Endpoint("org-id", new string[0], isDynamic: true),
-                Endpoint("org-id", new[] { "abc" }, isDynamic: true),
-                Endpoint(null, null, isDynamic: true),
+                CreateEndpoint("org-id", new string[0], HeaderMatchMode.Exists),
+                CreateEndpoint("org-id", new[] { "abc" }),
+                CreateEndpoint("org-id", new[] { "abc", "def" }),
+                CreateEndpoint("org-id", new string[0], HeaderMatchMode.Exists, isDynamic: true),
+                CreateEndpoint("org-id", new[] { "abc" }, isDynamic: true),
+                CreateEndpoint("org-id", null, HeaderMatchMode.Exists, isDynamic: true),
+                CreateEndpoint(new[]
+                {
+                    new HeaderMetadata("header", new string[0], HeaderMatchMode.Exists, caseSensitive: true),
+                    new HeaderMetadata("header", new[] { "abc" }, HeaderMatchMode.ExactHeader, caseSensitive: true)
+                })
             };
             var sut = new HeaderMatcherPolicy();
             var endpointSelectorPolicy = (IEndpointSelectorPolicy)sut;
 
-            // Act
             for (var i = 0; i < scenarios.Length; i++)
             {
                 var result = endpointSelectorPolicy.AppliesToEndpoints(new[] { scenarios[i] });
@@ -92,7 +137,7 @@ namespace Microsoft.ReverseProxy.Service.Routing
         [Fact]
         public void AppliesToEndpoints_NoMetadata_DoesNotApply()
         {
-            var endpoint = new RouteEndpointBuilder(_ => Task.CompletedTask, RoutePatternFactory.Parse("/"), 0).Build();
+            var endpoint = CreateEndpoint(Array.Empty<HeaderMetadata>());
 
             var sut = new HeaderMatcherPolicy();
             var endpointSelectorPolicy = (IEndpointSelectorPolicy)sut;
@@ -107,39 +152,33 @@ namespace Microsoft.ReverseProxy.Service.Routing
         [InlineData("abc", true)]
         public async Task ApplyAsync_MatchingScenarios_AnyHeaderValue(string incomingHeaderValue, bool shouldMatch)
         {
-            // Arrange
             var context = new DefaultHttpContext();
             if (incomingHeaderValue != null)
             {
                 context.Request.Headers.Add("org-id", incomingHeaderValue);
             }
 
-            var endpoint = Endpoint("org-id", new[] { string.Empty }, HeaderMatchMode.Exists);
+            var endpoint = CreateEndpoint("org-id", new string[0], HeaderMatchMode.Exists);
             var candidates = new CandidateSet(new[] { endpoint }, new RouteValueDictionary[1], new int[1]);
             var sut = new HeaderMatcherPolicy();
 
-            // Act
             await sut.ApplyAsync(context, candidates);
 
-            // Assert
             Assert.Equal(shouldMatch, candidates.IsValidCandidate(0));
         }
 
         [Fact]
         public async Task ApplyAsync_MultipleHeaderValues_NotSupported()
         {
-            // Arrange
             var context = new DefaultHttpContext();
             context.Request.Headers.Add("org-id", new[] { "a", "b" });
 
-            var endpoint = Endpoint("org-id", new[] { "a" });
+            var endpoint = CreateEndpoint("org-id", new[] { "a" });
             var candidates = new CandidateSet(new[] { endpoint }, new RouteValueDictionary[1], new int[1]);
             var sut = new HeaderMatcherPolicy();
 
-            // Act
             await sut.ApplyAsync(context, candidates);
 
-            // Assert
             Assert.False(candidates.IsValidCandidate(0));
         }
 
@@ -173,21 +212,18 @@ namespace Microsoft.ReverseProxy.Service.Routing
             string incomingHeaderValue,
             bool shouldMatch)
         {
-            // Arrange
             var context = new DefaultHttpContext();
             if (incomingHeaderValue != null)
             {
                 context.Request.Headers.Add("org-id", incomingHeaderValue);
             }
 
-            var endpoint = Endpoint("org-id", new[] { headerValue }, headerValueMatchMode, caseSensitive);
+            var endpoint = CreateEndpoint("org-id", new[] { headerValue }, headerValueMatchMode, caseSensitive);
             var candidates = new CandidateSet(new[] { endpoint }, new RouteValueDictionary[1], new int[1]);
             var sut = new HeaderMatcherPolicy();
 
-            // Act
             await sut.ApplyAsync(context, candidates);
 
-            // Assert
             Assert.Equal(shouldMatch, candidates.IsValidCandidate(0));
         }
 
@@ -238,7 +274,7 @@ namespace Microsoft.ReverseProxy.Service.Routing
             // Arrange
             var context = new DefaultHttpContext();
             context.Request.Headers.Add("org-id", incomingHeaderValue);
-            var endpoint = Endpoint("org-id", new[] { header1Value, header2Value }, headerValueMatchMode, caseSensitive);
+            var endpoint = CreateEndpoint("org-id", new[] { header1Value, header2Value }, headerValueMatchMode, caseSensitive);
 
             var candidates = new CandidateSet(new[] { endpoint }, new RouteValueDictionary[1], new int[1]);
             var sut = new HeaderMatcherPolicy();
@@ -257,12 +293,11 @@ namespace Microsoft.ReverseProxy.Service.Routing
         [InlineData(true, true, true)]
         public async Task ApplyAsync_MultipleRules_RequiresAllHeaders(bool sendHeader1, bool sendHeader2, bool shouldMatch)
         {
-            var builder = new RouteEndpointBuilder(_ => Task.CompletedTask, RoutePatternFactory.Parse("/"), 0);
-            var metadata1 = new HeaderMetadata("header1", new[] { "value1" }, HeaderMatchMode.ExactHeader, caseSensitive: false);
-            var metadata2 = new HeaderMetadata("header2", new[] { "value2" }, HeaderMatchMode.ExactHeader, caseSensitive: false);
-            builder.Metadata.Add(metadata1);
-            builder.Metadata.Add(metadata2);
-            var endpoint = builder.Build();
+            var endpoint = CreateEndpoint(new[]
+            {
+                new HeaderMetadata("header1", new[] { "value1" }, HeaderMatchMode.ExactHeader, caseSensitive: false),
+                new HeaderMetadata("header2", new[] { "value2" }, HeaderMatchMode.ExactHeader, caseSensitive: false)
+            });
 
             var context = new DefaultHttpContext();
             if (sendHeader1)
@@ -282,21 +317,23 @@ namespace Microsoft.ReverseProxy.Service.Routing
             Assert.Equal(shouldMatch, candidates.IsValidCandidate(0));
         }
 
-        private static Endpoint Endpoint(
+        private static Endpoint CreateEndpoint(
             string headerName,
             string[] headerValues,
-            HeaderMatchMode headerValueMatchMode = HeaderMatchMode.ExactHeader,
+            HeaderMatchMode mode = HeaderMatchMode.ExactHeader,
             bool caseSensitive = false,
             bool isDynamic = false)
         {
-            var builder = new RouteEndpointBuilder(_ => Task.CompletedTask, RoutePatternFactory.Parse("/"), 0);
-            var metadata = new Mock<IHeaderMetadata>();
-            metadata.SetupGet(m => m.Name).Returns(headerName);
-            metadata.SetupGet(m => m.Values).Returns(headerValues);
-            metadata.SetupGet(m => m.Mode).Returns(headerValueMatchMode);
-            metadata.SetupGet(m => m.CaseSensitive).Returns(caseSensitive);
+            return CreateEndpoint(new[] { new HeaderMetadata(headerName, headerValues, mode, caseSensitive) }, isDynamic);
+        }
 
-            builder.Metadata.Add(metadata.Object);
+        private static Endpoint CreateEndpoint(IList<IHeaderMetadata> metadata, bool isDynamic = false)
+        {
+            var builder = new RouteEndpointBuilder(_ => Task.CompletedTask, RoutePatternFactory.Parse("/"), 0);
+            foreach (var m in metadata)
+            {
+                builder.Metadata.Add(m);
+            }
             if (isDynamic)
             {
                 builder.Metadata.Add(new DynamicEndpointMetadata());

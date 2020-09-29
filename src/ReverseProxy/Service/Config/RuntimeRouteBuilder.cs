@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.ReverseProxy.Abstractions;
 using Microsoft.ReverseProxy.Abstractions.RouteDiscovery.Contract;
 using Microsoft.ReverseProxy.RuntimeModel;
-using Microsoft.ReverseProxy.Service.Config;
+using Microsoft.ReverseProxy.Service.Routing;
 using CorsConstants = Microsoft.ReverseProxy.Abstractions.RouteDiscovery.Contract.CorsConstants;
 
 namespace Microsoft.ReverseProxy.Service
@@ -74,6 +74,15 @@ namespace Microsoft.ReverseProxy.Service
             if (source.Match.Hosts != null && source.Match.Hosts.Count != 0)
             {
                 endpointBuilder.Metadata.Add(new AspNetCore.Routing.HostAttribute(source.Match.Hosts.ToArray()));
+            }
+
+            if (source.Match.Headers != null)
+            {
+                foreach (var header in source.Match.Headers)
+                {
+                    endpointBuilder.Metadata.Add(
+                        new HeaderMetadata(header.Name, header.Values, header.Mode, header.CaseSensitive));
+                }
             }
 
             bool acceptCorsPreflight;
