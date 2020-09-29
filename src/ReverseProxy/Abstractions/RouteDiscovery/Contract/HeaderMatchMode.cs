@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using Microsoft.ReverseProxy.Service.Routing;
+
 namespace Microsoft.ReverseProxy.Abstractions
 {
     /// <summary>
