@@ -36,6 +36,15 @@ namespace Microsoft.ReverseProxy.Service.Routing
             return AppliesToEndpointsCore(endpoints);
         }
 
+        private static bool AppliesToEndpointsCore(IReadOnlyList<Endpoint> endpoints)
+        {
+            return endpoints.Any(e =>
+            {
+                var metadata = e.Metadata.GetMetadata<IHeaderMetadata>();
+                return metadata != null;
+            });
+        }
+
         /// <inheritdoc/>
         public Task ApplyAsync(HttpContext httpContext, CandidateSet candidates)
         {
@@ -120,15 +129,6 @@ namespace Microsoft.ReverseProxy.Service.Routing
             };
         }
 
-        private static bool AppliesToEndpointsCore(IReadOnlyList<Endpoint> endpoints)
-        {
-            return endpoints.Any(e =>
-            {
-                var metadata = e.Metadata.GetMetadata<IHeaderMetadata>();
-                return metadata != null;
-            });
-        }
-
         private class HeaderMetadataEndpointComparer : IComparer<Endpoint>
         {
             public int Compare(Endpoint x, Endpoint y)
@@ -136,7 +136,7 @@ namespace Microsoft.ReverseProxy.Service.Routing
                 _ = x ?? throw new ArgumentNullException(nameof(x));
                 _ = y ?? throw new ArgumentNullException(nameof(y));
 
-                // First check, do they both have at least one?
+                // First check do they both have at least one?
                 var xmeta = x.Metadata.GetMetadata<IHeaderMetadata>();
                 var ymeta = y.Metadata.GetMetadata<IHeaderMetadata>();
 

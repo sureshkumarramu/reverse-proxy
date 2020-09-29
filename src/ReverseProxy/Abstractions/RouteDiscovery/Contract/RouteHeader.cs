@@ -21,7 +21,7 @@ namespace Microsoft.ReverseProxy.Abstractions
 
         /// <summary>
         /// A collection of acceptable header values used during routing.
-        /// The list must not be empty.
+        /// The list must not be empty unless using <see cref="HeaderMatchMode.Exists"/>.
         /// </summary>
         public IReadOnlyList<string> Values { get; set; }
 
